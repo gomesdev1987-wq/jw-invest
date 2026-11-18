@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carteira Digital de Investimentos</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              900: '#14532d',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-12">
+
+  <!-- Top Navigation -->
+  <header class="border-b border-slate-800 glass-card sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-500/20">
+          <i data-lucide="wallet" class="w-6 h-6"></i>
+        </div>
+        <h1 class="text-xl font-bold tracking-tight text-white">Carteira<span class="text-emerald-400">Digital</span></h1>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="openCaixinhaModal()" class="px-4 py-2 text-sm font-medium rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition flex items-center gap-2">
+          <i data-lucide="piggy-bank" class="w-4 h-4 text-purple-400"></i>
+          <span>Caixinha</span>
+        </button>
+        <button onclick="openTradeModal()" class="px-4 py-2 text-sm font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 transition flex items-center gap-2 shadow-lg shadow-emerald-500/10">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i>
+          <span>Nova Operação</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-8">
+    
+    <!-- Summary KPI Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="glass-card rounded-2xl p-5">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider">Patrimônio Total</span>
+          <i data-lucide="dollar-sign" class="w-4 h-4"></i>
+        </div>
+        <div id="kpi-patrimonio" class="text-2xl font-bold text-white">R$ 0,00</div>
+        <div class="text-xs text-slate-400 mt-1">Ações/FIIs + Caixinha</div>
+      </div>
+
+      <div class="glass-card rounded-2xl p-5">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider">Total em Renda Variável</span>
+          <i data-lucide="trending-up" class="w-4 h-4 text-emerald-400"></i>
+        </div>
+        <div id="kpi-investido" class="text-2xl font-bold text-emerald-400">R$ 0,00</div>
+        <div class="text-xs text-slate-400 mt-1">0 ativos cadastrados</div>
+      </div>
+
+      <div class="glass-card rounded-2xl p-5">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider">Caixinha Nubank</span>
+          <i data-lucide="piggy-bank" class="w-4 h-4 text-purple-400"></i>
+        </div>
+        <div id="kpi-caixinha" class="text-2xl font-bold text-purple-400">R$ 0,00</div>
+        <div class="text-xs text-slate-400 mt-1">CDI: <span id="kpi-cdi">100%</span></div>
+      </div>
+
+      <div class="glass-card rounded-2xl p-5">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider">Rendimento Estimado</span>
+          <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+        </div>
+        <div id="kpi-rendimento" class="text-2xl font-bold text-amber-400">R$ 0,00</div>
+        <div class="text-xs text-slate-400 mt-1">Estimativa mensal da Caixinha</div>
+      </div>
+    </div>
+
+    <!-- Allocation Chart and Analytics -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="glass-card rounded-2xl p-6 lg:col-span-1 flex flex-col items-center justify-center">
+        <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400 self-start mb-4">Distribuição de Ativos</h3>
+        <div class="w-full max-w-[260px] aspect-square relative flex items-center justify-center">
+          <canvas id="allocationChart"></canvas>
+          <div id="emptyChartMessage" class="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+            <i data-lucide="pie-chart" class="w-10 h-10 text-slate-600 mb-2"></i>
+            <p class="text-xs text-slate-500">Nenhum ativo cadastrado para exibir o gráfico.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Assets Table -->
+      <div class="glass-card rounded-2xl p-6 lg:col-span-2 flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Ativos em Carteira</h3>
+          <button onclick="resetCarteira()" class="text-xs text-slate-500 hover:text-red-400 transition flex items-center gap-1">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Resetar Limpa
+          </button>
+        </div>
+
+        <div class="overflow-x-auto flex-1">
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider">
+                <th class="py-3 px-3">Ticker</th>
+                <th class="py-3 px-3 text-right">Preço Médio</th>
+                <th class="py-3 px-3 text-right">Qtd. Cotas</th>
+                <th class="py-3 px-3 text-right">Total Investido</th>
+                <th class="py-3 px-3 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="assetsTableBody" class="divide-y divide-slate-800/60">
+              <!-- Render via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal: Nova Operação (Compra / Venda) -->
+  <div id="tradeModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="glass-card rounded-2xl w-full max-w-md p-6 relative border border-slate-700 shadow-2xl">
+      <button onclick="closeTradeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+        <i data-lucide="arrow-left-right" class="w-5 h-5 text-emerald-400"></i> Registrar Operação
+      </h2>
+
+      <form id="tradeForm" onsubmit="handleTradeSubmit(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Tipo de Operação</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" id="btnTypeBuy" onclick="setTradeType('BUY')" class="py-2 rounded-lg font-semibold text-sm border border-emerald-500/50 bg-emerald-500/20 text-emerald-400">Compra</button>
+            <button type="button" id="btnTypeSell" onclick="setTradeType('SELL')" class="py-2 rounded-lg font-semibold text-sm border border-slate-700 bg-slate-800 text-slate-400">Venda</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Ticker / Código</label>
+          <input type="text" id="tradeTicker" required placeholder="Ex: PETR4, ITSA4, MXRF11" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500 uppercase" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Quantidade</label>
+            <input type="number" step="any" min="0.0001" id="tradeQuantity" required placeholder="0" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Preço Unitário (R$)</label>
+            <input type="number" step="0.01" min="0.01" id="tradePrice" required placeholder="0,00" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500" />
+          </div>
+        </div>
+
+        <button type="submit" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 font-bold text-slate-950 rounded-lg transition shadow-lg shadow-emerald-500/20 mt-2">
+          Confirmar Operação
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Ajustar Caixinha Nubank -->
+  <div id="caixinhaModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="glass-card rounded-2xl w-full max-w-md p-6 relative border border-slate-700 shadow-2xl">
+      <button onclick="closeCaixinhaModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+        <i data-lucide="piggy-bank" class="w-5 h-5 text-purple-400"></i> Ajustar Caixinha Nubank
+      </h2>
+
+      <form onsubmit="handleCaixinhaSubmit(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Saldo Atual (R$)</label>
+          <input type="number" step="0.01" min="0" id="caixinhaValorInput" required placeholder="0,00" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-purple-500" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Rendimento CDI (%)</label>
+          <input type="number" step="1" min="0" id="caixinhaCdiInput" required placeholder="100" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-purple-500" />
+        </div>
+
+        <button type="submit" class="w-full py-3 bg-purple-500 hover:bg-purple-600 font-bold text-white rounded-lg transition shadow-lg shadow-purple-500/20 mt-2">
+          Salvar Dados
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let assets = [];
+    let caixinha = { valor: 0.00, cdi: 100, rendimentoEstimado: 0.00 };
+    let tradeType = 'BUY';
+    let chartInstance = null;
+
+    // Local Storage Keys
+    const STORAGE_KEY_ASSETS = 'carteira_digital_assets_v2';
+    const STORAGE_KEY_CAIXINHA = 'carteira_digital_caixinha_v2';
+
+    // Init
+    document.addEventListener('DOMContentLoaded', () => {
+      loadState();
+      initChart();
+      render();
+      lucide.createIcons();
+    });
+
+    function loadState() {
+      const savedAssets = localStorage.getItem(STORAGE_KEY_ASSETS);
+      const savedCaixinha = localStorage.getItem(STORAGE_KEY_CAIXINHA);
+
+      if (savedAssets !== null) {
+        assets = JSON.parse(savedAssets);
+      } else {
+        // Carteira limpa por padrão
+        assets = [];
+      }
+
+      if (savedCaixinha !== null) {
+        caixinha = JSON.parse(savedCaixinha);
+      } else {
+        caixinha = { valor: 0.00, cdi: 100, rendimentoEstimado: 0.00 };
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY_ASSETS, JSON.stringify(assets));
+      localStorage.setItem(STORAGE_KEY_CAIXINHA, JSON.stringify(caixinha));
+    }
+
+    function resetCarteira() {
+      if (confirm('Tem certeza que deseja zerar totalmente a carteira?')) {
+        assets = [];
+        caixinha = { valor: 0, cdi: 100, rendimentoEstimado: 0 };
+        saveState();
+        render();
+      }
+    }
+
+    // Formatting Helpers
+    function formatCurrency(val) {
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+    }
+
+    function formatNumber(val, decimals = 2) {
+      return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(val || 0);
+    }
+
+    // Calculations & Rendering
+    function render() {
+      const tbody = document.getElementById('assetsTableBody');
+      tbody.innerHTML = '';
+
+      let totalInvestidoRV = 0;
+
+      if (assets.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="py-8 text-center text-slate-500">
+              Nenhuma ação ou fundo em carteira. Clique em <strong>"Nova Operação"</strong> para cadastrar um ativo.
+            </td>
+          </tr>
+        `;
+      } else {
+        assets.forEach(asset => {
+          const totalAtivo = asset.price * asset.quantity;
+          totalInvestidoRV += totalAtivo;
+
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-800/40 transition';
+          tr.innerHTML = `
+            <td class="py-3 px-3 font-semibold text-white">${asset.ticker}</td>
+            <td class="py-3 px-3 text-right text-slate-300">${formatCurrency(asset.price)}</td>
+            <td class="py-3 px-3 text-right text-slate-300">${formatNumber(asset.quantity, asset.quantity % 1 === 0 ? 0 : 4)}</td>
+            <td class="py-3 px-3 text-right font-medium text-emerald-400">${formatCurrency(totalAtivo)}</td>
+            <td class="py-3 px-3 text-right space-x-1">
+              <button onclick="quickTrade('BUY', '${asset.ticker}')" class="px-2 py-1 text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded border border-emerald-500/30">Comprar</button>
+              <button onclick="quickTrade('SELL', '${asset.ticker}')" class="px-2 py-1 text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded border border-red-500/30">Vender</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      const patrimonioTotal = totalInvestidoRV + caixinha.valor;
+
+      // Update KPIs
+      document.getElementById('kpi-patrimonio').textContent = formatCurrency(patrimonioTotal);
+      document.getElementById('kpi-investido').textContent = formatCurrency(totalInvestidoRV);
+      document.getElementById('kpi-caixinha').textContent = formatCurrency(caixinha.valor);
+      document.getElementById('kpi-cdi').textContent = `${caixinha.cdi}%`;
+      document.getElementById('kpi-rendimento').textContent = formatCurrency(caixinha.rendimentoEstimado);
+
+      updateChart();
+    }
+
+    // Chart Management
+    function initChart() {
+      const ctx = document.getElementById('allocationChart').getContext('2d');
+      chartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: [],
+          datasets: [{
+            data: [],
+            backgroundColor: [
+              '#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#f97316'
+            ],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                label: (context) => `${context.label}: ${formatCurrency(context.raw)}`
+              }
+            }
+          },
+          cutout: '75%'
+        }
+      });
+    }
+
+    function updateChart() {
+      const labels = [];
+      const data = [];
+
+      assets.forEach(a => {
+        labels.push(a.ticker);
+        data.push(a.price * a.quantity);
+      });
+
+      if (caixinha.valor > 0) {
+        labels.push('Caixinha Nubank');
+        data.push(caixinha.valor);
+      }
+
+      const emptyMsg = document.getElementById('emptyChartMessage');
+      if (data.length === 0) {
+        emptyMsg.classList.remove('hidden');
+      } else {
+        emptyMsg.classList.add('hidden');
+      }
+
+      chartInstance.data.labels = labels;
+      chartInstance.data.datasets[0].data = data;
+      chartInstance.update();
+    }
+
+    // Trade Operations Modal
+    function openTradeModal() {
+      document.getElementById('tradeModal').classList.remove('hidden');
+    }
+
+    function closeTradeModal() {
+      document.getElementById('tradeModal').classList.add('hidden');
+      document.getElementById('tradeForm').reset();
+      setTradeType('BUY');
+    }
+
+    function setTradeType(type) {
+      tradeType = type;
+      const btnBuy = document.getElementById('btnTypeBuy');
+      const btnSell = document.getElementById('btnTypeSell');
+
+      if (type === 'BUY') {
+        btnBuy.className = 'py-2 rounded-lg font-semibold text-sm border border-emerald-500/50 bg-emerald-500/20 text-emerald-400';
+        btnSell.className = 'py-2 rounded-lg font-semibold text-sm border border-slate-700 bg-slate-800 text-slate-400';
+      } else {
+        btnSell.className = 'py-2 rounded-lg font-semibold text-sm border border-red-500/50 bg-red-500/20 text-red-400';
+        btnBuy.className = 'py-2 rounded-lg font-semibold text-sm border border-slate-700 bg-slate-800 text-slate-400';
+      }
+    }
+
+    function quickTrade(type, ticker) {
+      setTradeType(type);
+      document.getElementById('tradeTicker').value = ticker;
+      openTradeModal();
+    }
+
+    function handleTradeSubmit(e) {
+      e.preventDefault();
+
+      const ticker = document.getElementById('tradeTicker').value.trim().toUpperCase();
+      const qty = parseFloat(document.getElementById('tradeQuantity').value);
+      const price = parseFloat(document.getElementById('tradePrice').value);
+
+      if (!ticker || isNaN(qty) || isNaN(price) || qty <= 0 || price <= 0) return;
+
+      const existingIndex = assets.findIndex(a => a.ticker === ticker);
+
+      if (tradeType === 'BUY') {
+        if (existingIndex >= 0) {
+          const current = assets[existingIndex];
+          const totalQty = current.quantity + qty;
+          const totalSpent = (current.price * current.quantity) + (price * qty);
+          current.price = totalSpent / totalQty;
+          current.quantity = totalQty;
+        } else {
+          assets.push({ ticker, price, quantity: qty });
+        }
+      } else if (tradeType === 'SELL') {
+        if (existingIndex < 0) {
+          alert('Você não possui este ativo na carteira para vender.');
+          return;
+        }
+        const current = assets[existingIndex];
+        if (qty > current.quantity) {
+          alert(`Você possui apenas ${current.quantity} cotas de ${ticker}.`);
+          return;
+        }
+        current.quantity -= qty;
+        if (current.quantity <= 0) {
+          assets.splice(existingIndex, 1);
+        }
+      }
+
+      saveState();
+      render();
+      closeTradeModal();
+    }
+
+    // Caixinha Modal
+    function openCaixinhaModal() {
+      document.getElementById('caixinhaValorInput').value = caixinha.valor || '';
+      document.getElementById('caixinhaCdiInput').value = caixinha.cdi || 100;
+      document.getElementById('caixinhaModal').classList.remove('hidden');
+    }
+
+    function closeCaixinhaModal() {
+      document.getElementById('caixinhaModal').classList.add('hidden');
+    }
+
+    function handleCaixinhaSubmit(e) {
+      e.preventDefault();
+      const val = parseFloat(document.getElementById('caixinhaValorInput').value) || 0;
+      const cdi = parseFloat(document.getElementById('caixinhaCdiInput').value) || 100;
+
+      // Estimativa mensal simplificada considerando taxa Selic base em ~10.5% a.a.
+      const selicAnual = 0.105;
+      const rendimentoMensal = (val * (selicAnual * (cdi / 100))) / 12;
+
+      caixinha = {
+        valor: val,
+        cdi: cdi,
+        rendimentoEstimado: rendimentoMensal
+      };
+
+      saveState();
+      render();
+      closeCaixinhaModal();
+    }
+  </script>
+</body>
+</html>
